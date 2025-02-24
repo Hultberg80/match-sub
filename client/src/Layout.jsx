@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useGlobal } from "./GlobalContext.jsx";
-import "./Layout.css";
+
 
 export default function Layout() {
     return (

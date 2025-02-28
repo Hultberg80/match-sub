@@ -1,10 +1,11 @@
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.EntityFrameworkCore;
+using server;
 
-// Add services
+var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddCors();
 
 var app = builder.Build();
@@ -64,7 +65,7 @@ app.MapPost("/api/statistics", async (ApplicationDbContext db, StatisticDto dto)
     var statistic = new Statistics
     {
         PlayerMatchId = dto.PlayerMatchId,
-        Type = dto.Type,
+        Type = Enum.Parse<StatisticType>(dto.StatisticType),
         Period = dto.Period,
         TimeStamp = DateTime.Now
     };

@@ -1,93 +1,53 @@
-using Microsoft.EntityFrameworkCore;
-using server;
+using server.DTOs;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Npgsql;
+using Microsoft.AspNetCore.Http.Json;
+using server.Endpoints;
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddCors();
+namespace server;
 
-var app = builder.Build();
 
-// Configure middleware
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseCors(x => x
-    .AllowAnyMethod()
-    .AllowAnyHeader()
-    .WithOrigins("http://localhost:3000")); // Adjust for your React app's URL
-
-// Player endpoints
-app.MapGet("/api/players", async (ApplicationDbContext db) =>
-{
-    var players = await db.Players
-        .Include(p => p.PlayerMatches)
-        .Include(p => p.Statistics)
-        .ToListAsync();
-    return Results.Ok(players);
-});
-
-app.MapPost("/api/players", async (ApplicationDbContext db, Player player) =>
-{
-    db.Players.Add(player);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/players/{player.Id}", player);
-});
-
-// Match endpoints
-app.MapPost("/api/matches", async (ApplicationDbContext db, MatchStartDto dto) =>
-{
-    var match = new Match
+    public class Program // Deklarerar huvudklassen Program
     {
-        Date = DateTime.Now,
-        Opponent = dto.Opponent,
-        PlayerMatches = dto.PlayerIds.Select(pid => new PlayerMatch
+        public static void Main(string[] args) // Deklarerar huvudmetoden Main
         {
-            PlayerId = pid,
-            PlayTimeFirstHalf = 0,
-            PlayTimeSecondHalf = 0
-        }).ToList()
-    };
+            var builder = WebApplication.CreateBuilder(args); // Skapar en WebApplicationBuilder
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-    db.Matches.Add(match);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/matches/{match.Id}", match);
-});
+            // Om anslutningssträngen inte finns i appsettings.json, använd miljövariabeln
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+            }
 
-// Statistics endpoints
-app.MapPost("/api/statistics", async (ApplicationDbContext db, StatisticDto dto) =>
-{
-    var statistic = new Statistics
-    {
-        PlayerMatchId = dto.PlayerMatchId,
-        Type = Enum.Parse<StatisticType>(dto.StatisticType),
-        Period = dto.Period,
-        TimeStamp = DateTime.Now
-    };
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException("Connection string is not set.");
+            }
 
-    db.Statistics.Add(statistic);
-    await db.SaveChangesAsync();
-    return Results.Ok();
-});
+            NpgsqlDataSource postgresdb = NpgsqlDataSource.Create(connectionString);
 
-// Player time update endpoint
-app.MapPut("/api/playertime/{id}", async (ApplicationDbContext db, int id, PlayerTimeUpdateDto dto) =>
-{
-    var playerMatch = await db.PlayerMatches.FindAsync(id);
-    if (playerMatch == null) return Results.NotFound();
+            builder.Services.AddSingleton<NpgsqlDataSource>(postgresdb);
 
-    if (dto.Period == 1)
-        playerMatch.PlayTimeFirstHalf = dto.Time;
-    else
-        playerMatch.PlayTimeSecondHalf = dto.Time;
+            builder.Services.AddDistributedMemoryCache(); // Required for session state
+            builder.Services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromMinutes(30); // Set session timeout
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+            });
 
-    await db.SaveChangesAsync();
-    return Results.Ok();
-});
+            // "DefaultConnection": "Host=45.10.162.204;Port=5438;Database=test_db;Username=postgres;Password=_FrozenPresidentSmacks!;"
 
-app.Run();
+
+
+            var app = builder.Build();
+            
+            app.UseSession(); 
+            
+            app.MapPlayersEndpoints();
+            
+            app.Run(); // Startar webbservern
+        }
+    }

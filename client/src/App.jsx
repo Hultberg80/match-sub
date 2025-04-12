@@ -6,6 +6,7 @@ import Players from "./pages/Players.jsx";
 import Statistics from "./pages/Statistics.jsx";
 import { GlobalProvider } from "./GlobalContext.jsx";
 
+
 export default function App() {
     return (
         <GlobalProvider>

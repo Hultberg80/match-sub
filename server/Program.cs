@@ -46,7 +46,10 @@ namespace server;
             
             app.UseSession(); 
             
-            app.MapPlayersEndpoints();
+            app.MapPlayersEndpoints(); // Registrerar spelare-endpoints
+            app.MapTeamsEndpoints(); // Registrerar lag-endpoints
+            app.MapMatchEndpoints(); // Registrerar match-endpoints
+            app.MapStatsEndpoints(); // Registrerar statistik-endpoints
             
             app.Run(); // Startar webbservern
         }

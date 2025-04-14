@@ -40,5 +40,32 @@ public static class PlayersEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
         });
+        
+        app.MapGet("/api/players", async (NpgsqlDataSource db) =>
+        {
+            try
+            {
+                await using var cmd = db.CreateCommand("SELECT id, first_name, last_name, birth_date FROM players;");
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                var players = new List<PlayersDto>();
+
+                while (await reader.ReadAsync())
+                {
+                    players.Add(new PlayersDto
+                    {
+                        FirstName = reader.GetString(1),
+                        LastName = reader.GetString(2),
+                        BirthDate = reader.GetDateTime(3)
+                    });
+                }
+
+                return Results.Ok(players);
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
     }
 }
